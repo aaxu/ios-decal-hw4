@@ -12,6 +12,8 @@ import AVKit
 
 class PlayerViewController: UIViewController {
     var tracks: [Track]!
+    var currentURL: URL!
+    var items: [AVPlayerItem]!
     var scAPI: SoundCloudAPI!
 
     var currentIndex: Int!
@@ -21,10 +23,11 @@ class PlayerViewController: UIViewController {
     var playPauseButton: UIButton!
     var nextButton: UIButton!
     var previousButton: UIButton!
+    var playImage : UIImage!
+    var pauseImage : UIImage!
 
     var artistLabel: UILabel!
     var titleLabel: UILabel!
-    var didPlay: [Track]!
 
     var paused = true
 
@@ -35,7 +38,7 @@ class PlayerViewController: UIViewController {
 
         scAPI = SoundCloudAPI()
         scAPI.loadTracks(didLoadTracks)
-        self.didPlay = []
+        items = []
         currentIndex = 0
 
         player = AVQueuePlayer()
@@ -74,8 +77,8 @@ class PlayerViewController: UIViewController {
         let height = UIScreen.main.bounds.size.height
         let offset = height - width
 
-        let playImage = UIImage(named: "play")?.withRenderingMode(.alwaysTemplate)
-        let pauseImage = UIImage(named: "pause")?.withRenderingMode(.alwaysTemplate)
+        playImage = UIImage(named: "play")?.withRenderingMode(.alwaysTemplate)
+        pauseImage = UIImage(named: "pause")?.withRenderingMode(.alwaysTemplate)
         let nextImage = UIImage(named: "next")?.withRenderingMode(.alwaysTemplate)
         let previousImage = UIImage(named: "previous")?.withRenderingMode(.alwaysTemplate)
 
@@ -130,12 +133,39 @@ class PlayerViewController: UIViewController {
      */
     
     func playOrPauseTrack(_ sender: UIButton) {
+        
+        addTrack()
+        
+        print("CHECK TRUE \(((player.currentItem) != nil))")
+        if (sender.isSelected) {
+            print("Pausing")
+            player.pause()
+        } else {
+            print("playing")
+            player.play()
+            
+        }
+        sender.isSelected = !sender.isSelected
+        
+
+    }
+    
+    func addTrack() {
         let path = Bundle.main.path(forResource: "Info", ofType: "plist")
         let clientID = NSDictionary(contentsOfFile: path!)?.value(forKey: "client_id") as! String
         let track = tracks[currentIndex]
         let url = URL(string: "https://api.soundcloud.com/tracks/\(track.id as Int)/stream?client_id=\(clientID)")!
-        // FILL ME IN
-
+        let item = AVPlayerItem(url: url)
+        if (url != currentURL && player.canInsert(item, after: nil)) {
+            let wasNil : Bool = (player.currentItem == nil)
+            player.insert(item, after: nil)
+            if !wasNil {
+                player.advanceToNextItem()
+            }
+            print("CURRENT ITEM")
+            print(player.currentItem)
+            currentURL = url
+        }
     }
 
     /*
@@ -146,6 +176,14 @@ class PlayerViewController: UIViewController {
      */
     func nextTrackTapped(_ sender: UIButton) {
         // FILL ME IN
+        if currentIndex + 1 < tracks.count {
+            currentIndex = currentIndex + 1
+            asyncLoadTrackImage(tracks[currentIndex])
+            if playPauseButton.isSelected {
+                addTrack()
+            }
+        }
+        
     }
 
     /*
@@ -160,6 +198,17 @@ class PlayerViewController: UIViewController {
 
     func previousTrackTapped(_ sender: UIButton) {
         // FILL ME IN
+        let timeElapsed = CMTimeGetSeconds((player.currentItem?.currentTime())!)
+        if timeElapsed <= 3 && currentIndex > 0 {
+            currentIndex = currentIndex - 1
+            asyncLoadTrackImage(tracks[currentIndex])
+            if playPauseButton.isSelected {
+                addTrack()
+            }
+        } else {
+            let resetTime = CMTimeMake(0, 10)
+            player.currentItem?.seek(to: resetTime)
+        }
     }
 
 
